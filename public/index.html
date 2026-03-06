@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chrome Code</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --text: #c9d1d9;
+    --text-heading: #f0f6fc;
+    --text-muted: #6e7681;
+    --surface: #161b22;
+    --surface-hover: rgba(255,255,255,0.05);
+    --surface-active: rgba(255,255,255,0.08);
+    --border: #30363d;
+    --border-subtle: #21262d;
+    --accent: #58a6ff;
+    --sidebar-w: 260px;
+  }
+
+  [data-theme="light"] {
+    --bg: #f5f5f5;
+    --text: #37352f;
+    --text-heading: #37352f;
+    --text-muted: #9b9a97;
+    --surface: #ffffff;
+    --surface-hover: rgba(0,0,0,0.03);
+    --surface-active: rgba(0,0,0,0.06);
+    --border: #e8e8e8;
+    --border-subtle: #f0f0f0;
+    --accent: #0969da;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    user-select: none;
+  }
+  .sidebar-top { padding: 16px 16px 8px; }
+  .sidebar-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    transition: background 0.1s;
+  }
+  .sidebar-action:hover { background: var(--surface-hover); }
+  .sidebar-action svg { width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0; }
+  .sidebar-action span { font-weight: 400; }
+
+  .sidebar-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.01em;
+  }
+
+  .session-list {
+    list-style: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .session-list::-webkit-scrollbar { width: 4px; }
+  .session-list::-webkit-scrollbar-track { background: transparent; }
+  .session-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .session-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    margin: 1px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    transition: background 0.1s;
+    position: relative;
+  }
+  .session-item:hover { background: var(--surface-hover); }
+  .session-item.active { background: var(--surface-active); }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 2px;
+  }
+  .status-dot.busy { background: #d29922; animation: pulse 1.5s ease-in-out infinite; }
+  .status-dot.waiting { background: #f85149; animation: pulse 1s ease-in-out infinite; }
+  .status-dot.done { background: #58a6ff; }
+  .status-dot.idle { background: #3fb950; }
+  .status-dot.active { background: #58a6ff; }
+  .status-dot.starting { background: var(--text-muted); animation: pulse 1.5s ease-in-out infinite; }
+  .status-dot.unknown { background: var(--text-muted); opacity: 0.4; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .session-info-col {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .session-item .session-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 14px; line-height: 1.3;
+  }
+  .session-status-text { font-size: 11px; color: var(--text-muted); line-height: 1.2; }
+  .session-item .session-age { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+  .session-item .session-close {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 13px; width: 22px; height: 22px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.1s, background 0.1s;
+  }
+  .session-item:hover .session-close { opacity: 1; }
+  .session-item:hover .session-age { opacity: 0; }
+  .session-item .session-close:hover { background: var(--surface-hover); color: #f85149; }
+
+  .no-sessions {
+    color: var(--text-muted); font-size: 13px;
+    padding: 24px 16px; text-align: center; line-height: 1.5;
+  }
+
+  .sidebar-bottom { padding: 8px 16px 16px; }
+  .sidebar-bottom .sidebar-action { color: var(--text-muted); font-size: 13px; }
+  .sidebar-bottom .sidebar-action svg { width: 16px; height: 16px; }
+
+  /* Main area */
+  .main {
+    flex: 1; position: relative;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .main iframe {
+    width: 100%; height: 100%; border: none; background: #000;
+    position: absolute; top: 0; left: 0;
+    z-index: 0; pointer-events: none;
+  }
+  .main iframe.active { z-index: 10; pointer-events: auto; }
+
+  /* Settings panel */
+  .panel-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 100;
+    display: none; backdrop-filter: blur(2px);
+  }
+  .panel-overlay.open { display: flex; align-items: center; justify-content: center; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; width: 560px; max-height: 80vh;
+    overflow-y: auto; padding: 24px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  }
+  .panel-title {
+    font-size: 16px; font-weight: 600; color: var(--text-heading);
+    margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 18px; cursor: pointer; width: 28px; height: 28px;
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  }
+  .panel-close:hover { background: var(--surface-hover); color: var(--text); }
+
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-size: 14px; }
+  .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .setting-input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; width: 200px;
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+  }
+  .setting-input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  select.setting-input { font-family: inherit; }
+  .save-btn {
+    background: var(--text); color: var(--surface); border: none;
+    padding: 8px 20px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 500; margin-top: 16px; transition: opacity 0.1s;
+  }
+  .save-btn:hover { opacity: 0.85; }
+  .save-msg { font-size: 12px; color: var(--accent); margin-left: 12px; display: none; }
+
+  .toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border); border-radius: 22px; transition: 0.2s;
+  }
+  .toggle-slider:before {
+    content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background: white; border-radius: 50%; transition: 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+  .welcome {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: var(--text-muted); gap: 8px; z-index: 5; background: var(--bg);
+  }
+  .welcome-icon { font-size: 32px; opacity: 0.2; }
+  .welcome-text { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-top">
+    <button class="sidebar-action" id="new-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <span>New session</span>
+    </button>
+    <button class="sidebar-action" id="theme-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <span>Toggle theme</span>
+    </button>
+  </div>
+
+  <div class="sidebar-label"><span>Sessions</span></div>
+  <ul class="session-list" id="session-list">
+    <li class="no-sessions">No active sessions</li>
+  </ul>
+
+  <div class="sidebar-bottom">
+    <button class="sidebar-action" id="settings-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </div>
+</div>
+
+<div class="main" id="main">
+  <div class="welcome" id="welcome">
+    <div class="welcome-icon">&gt;_</div>
+    <div class="welcome-text">Start a new session to begin</div>
+  </div>
+</div>
+
+<div class="panel-overlay" id="settings-overlay">
+  <div class="panel">
+    <div class="panel-title">
+      Settings
+      <button class="panel-close" id="settings-close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Default directory</div>
+        <div class="setting-desc">Default folder for new sessions</div>
+      </div>
+      <input class="setting-input" id="s-defaultDir" type="text">
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Font size</div>
+        <div class="setting-desc">Terminal font size (new sessions)</div>
+      </div>
+      <input class="setting-input" id="s-fontSize" type="number" min="10" max="32" style="width:80px">
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Theme</div>
+        <div class="setting-desc">Light or dark mode</div>
+      </div>
+      <select class="setting-input" id="s-theme" style="width:120px">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">ttyd start port</div>
+        <div class="setting-desc">First port for sessions (restart required)</div>
+      </div>
+      <input class="setting-input" id="s-ttydStartPort" type="number" min="1024" max="65535" style="width:100px">
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Browser notifications</div>
+        <div class="setting-desc">Notify when a session needs your input</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="s-notifications"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Sound alerts</div>
+        <div class="setting-desc">Play a sound when a session needs your input</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="s-sound"><span class="toggle-slider"></span></label>
+    </div>
+    <div style="display:flex;align-items:center;margin-top:16px">
+      <button class="save-btn" id="save-settings-btn">Save</button>
+      <span class="save-msg" id="save-msg">Saved</span>
+    </div>
+  </div>
+</div>
+
+<script src="/js/panels.js"></script>
+<script src="/js/alerts.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/sessions.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
