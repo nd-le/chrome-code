@@ -1,6 +1,6 @@
 # <img src="favicon.png" width="24" height="24"> Chrome Code
 
-Claude Code in a browser tab. Multiple persistent sessions, live status, settings UI.
+Claude Code in a browser tab. Multiple persistent sessions, live status, sound alerts, Chrome notifications, settings UI.
 
 ## Requirements
 
